@@ -5,8 +5,8 @@ Hides tool calls and shows an animated campfire above the prompt. The fire grows
 ## Install
 
 ```
-/plugin marketplace add le0u0/community
-/plugin install campfire@community
+/plugin marketplace add le0u0/le0u0.ai
+/plugin install campfire@le0u0.ai
 ```
 
 ## Use
