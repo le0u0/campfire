@@ -1,0 +1,9 @@
+{
+  "name": "campfire",
+  "version": "0.1.0",
+  "description": "Hides tool calls and shows an animated campfire above the prompt that grows as the job nears done",
+  "author": {
+    "name": "Leo Ho"
+  },
+  "types": "./types/index.d.ts"
+}
