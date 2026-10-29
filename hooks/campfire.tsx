@@ -39,7 +39,6 @@ export function levelOf(steps: Record<string, CampfireStepStatus>, elapsed = 0):
 }
 
 let ticker: Timer | null = null
-let previewTicker: Timer | null = null
 let fire: Fire = newFire(DEFAULT_STYLE, DEFAULT_SIZE)
 let isOn = true
 let isAlwaysOn = false
@@ -88,22 +87,6 @@ async function applySize($: $, size: number): Promise<void> {
   await update($, tickAtom, tick => tick + 1)
 }
 
-// While the styles pane is up and no job burns, the fire in it blazes so each look can be judged.
-function startPreview($: $): void {
-  previewTicker ??= $.clock.every(TICK_MS, async () => {
-    if (!(await $.ui.panes()).some(pane => pane.id === PANE)) {
-      previewTicker?.cancel()
-      previewTicker = null
-
-      return
-    }
-    if (ticker === null) {
-      stepFire(fire, 4)
-      void update($, tickAtom, tick => tick + 1)
-    }
-  })
-}
-
 async function setUp($: $): Promise<void> {
   const stored = await $.store.get(STORE_KEY)
   isOn = stored !== false
@@ -137,13 +120,12 @@ export function registerCampfire(on: On): void {
     if (arg === 'style') {
       const list = STYLES.map((style, index) => `${index + 1}. ${style.name}${index === fire.style ? ' (current)' : ''}`).join('\n')
       if (choice === '') {
-        const opened = await $.ui.open({ id: PANE, title: 'Campfire styles', rows: 22, focus: true })
+        const opened = await $.ui.open({ id: PANE, title: 'Campfire styles', rows: 3, focus: true })
         if (!opened.isPlaced) {
           return { text: `Pick one with /campfire style <number>:\n${list}` }
         }
-        startPreview($)
 
-        return { text: 'Press n or p in the pane, or 1-9, to preview and use a style.' }
+        return { text: 'Press 1-9 in the pane, or click a number, to pick a style.' }
       }
       const index = /^\d+$/.test(choice) ? Number(choice) - 1 : STYLES.findIndex(style => style.name.toLowerCase().startsWith(choice))
       if (STYLES[index] === undefined) {
@@ -261,20 +243,10 @@ export function registerCampfire(on: On): void {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text, Button } = $.ui.resolve(e)
     void (await read($, tickAtom))
-    const rows = drawFire(fire, true)
     const go = (index: number) => void applyStyle($, (index + STYLES.length) % STYLES.length)
 
     return (
       <Box flexDirection="column">
-        <Box flexDirection="row">
-          <Button key="previous" hotkey="p" onPress={() => go(fire.style - 1)}>
-            <Text dimColor>[p] previous  </Text>
-          </Button>
-          <Button key="next" hotkey="n" onPress={() => go(fire.style + 1)}>
-            <Text dimColor>[n] next  </Text>
-          </Button>
-          <Text dimColor>[1-9] pick, or click a number</Text>
-        </Box>
         <Box flexDirection="row" flexWrap="wrap">
           {STYLES.map((style, index) => (
             <Button key={`style-${index}`} hotkey={index < 9 ? String(index + 1) : undefined} onPress={() => go(index)}>
@@ -287,17 +259,6 @@ export function registerCampfire(on: On): void {
         <Text bold color="success">
           {fire.style + 1}. {STYLES[fire.style]!.name}
         </Text>
-        <Box flexDirection="column" flexShrink={0} marginTop={1}>
-          {rows.map((row, index) => (
-            <Text key={`row-${index}`} wrap="truncate-end">
-              {row.map((cell, column) => (
-                <Text key={`cell-${column}`} color={cell.color === '' ? undefined : cell.color} backgroundColor={cell.background}>
-                  {cell.char}
-                </Text>
-              ))}
-            </Text>
-          ))}
-        </Box>
       </Box>
     )
   })

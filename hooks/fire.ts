@@ -1,7 +1,5 @@
-import { CLIPS, PALETTE } from './clips'
-
 // A campfire as a grid of pixels: flame is a grid of heat, smoke and sparks are particles, logs and stones are fixed.
-// Each style draws the pixels its own way: half blocks, braille dots, shades or chunky blocks.
+// Each style draws the pixels its own way: half blocks or braille dots.
 export type Level = 1 | 2 | 3 | 4
 
 type RGB = [number, number, number]
@@ -14,35 +12,20 @@ export type Fire = { style: number; size: number; level: Level; heat: number[][]
 
 type Style = {
   name: string
-  sim: { w: number; h: number; source: number; decay: number; tongues?: number; lean?: number; smoke?: number; sparks?: number; licks?: number; smooth?: number }
+  sim: { w: number; h: number; source: number; decay: number; tongues?: number; lean?: number; smoke?: number; sparks?: number; licks?: number; smooth?: number; shift?: number }
   smokeH: number
-  logs: 'crossed' | 'teepee' | 'block' | 'sticks' | 'pile'
+  logs: 'crossed' | 'teepee' | 'sticks' | 'torch'
   logsH: number
   overlap: number
-  render: 'half' | 'braille' | 'chunky' | 'clip'
-  clip?: string
-  restClip?: string
+  render: 'half' | 'braille'
   sticks?: number
-  isPosterized?: boolean
-  lit?: number
 }
 
-// The clip styles play recorded frames instead of simulating a fire.
-const CLIP_SIM = { w: 1, h: 1, source: 1, decay: 0.1 }
-
 export const STYLES: Style[] = [
-  // From code-like dots to recorded animation.
-  { name: 'Braille classic', sim: { w: 42, h: 22, source: 13, decay: 0.065, lean: 8, licks: 0.7, smooth: 0.06 }, smokeH: 2, logs: 'crossed', logsH: 8, overlap: 4, render: 'braille' },
-  { name: 'Braille bonfire', sim: { w: 42, h: 15, source: 28, decay: 0.12, tongues: 3, lean: 6 }, smokeH: 2, logs: 'pile', logsH: 11, overlap: 4, render: 'braille' },
-  { name: 'Stick teepee', sim: { w: 42, h: 17, source: 14, decay: 0.078, lean: 3, smoke: 0.1, sparks: 0.6 }, smokeH: 3, logs: 'sticks', logsH: 14, overlap: 6, render: 'braille', sticks: 9 },
-  { name: 'Bonfire tower', sim: { w: 42, h: 22, source: 10, decay: 0.051, lean: 4, smoke: 0.2, sparks: 0.4 }, smokeH: 3, logs: 'sticks', logsH: 14, overlap: 11, render: 'braille', sticks: 11 },
-  { name: 'Pixel art', sim: { w: 10, h: 9, source: 6, decay: 0.147, lean: 2 }, smokeH: 3, logs: 'crossed', logsH: 4, overlap: 2, render: 'chunky', isPosterized: true, lit: 0.2 },
-  { name: 'Block campfire', sim: { w: 10, h: 10, source: 6, decay: 0.12, lean: 1, smoke: 0 }, smokeH: 0, logs: 'block', logsH: 6, overlap: 2, render: 'chunky', isPosterized: true, lit: 0.2 },
-  { name: 'Half-block realistic', sim: { w: 21, h: 9, source: 10, decay: 0.14 }, smokeH: 2, logs: 'crossed', logsH: 6, overlap: 3, render: 'half' },
-  { name: 'Slim tongue', sim: { w: 21, h: 10, source: 6, decay: 0.1, lean: 3 }, smokeH: 2, logs: 'teepee', logsH: 6, overlap: 4, render: 'half' },
-  { name: 'Teepee and smoke', sim: { w: 21, h: 8, source: 8, decay: 0.158, smoke: 0.8 }, smokeH: 4, logs: 'teepee', logsH: 6, overlap: 4, render: 'half' },
-  { name: 'Cartoon stack', sim: CLIP_SIM, smokeH: 0, logs: 'crossed', logsH: 0, overlap: 0, render: 'clip', clip: 'sticker' },
-  { name: 'Wild flame', sim: CLIP_SIM, smokeH: 0, logs: 'crossed', logsH: 0, overlap: 0, render: 'clip', clip: 'wild', restClip: 'sticker' },
+  { name: 'Classic', sim: { w: 42, h: 22, source: 13, decay: 0.05, lean: 8, licks: 0.7, smooth: 0.06 }, smokeH: 3, logs: 'crossed', logsH: 8, overlap: 5, render: 'braille' },
+  { name: 'Pyre', sim: { w: 42, h: 19, source: 14, decay: 0.048, lean: 4, smoke: 0.2, sparks: 0.4 }, smokeH: 2, logs: 'sticks', logsH: 14, overlap: 7, render: 'braille', sticks: 11 },
+  { name: 'Teepee', sim: { w: 21, h: 10, source: 8, decay: 0.12, smoke: 0.8, shift: 1 }, smokeH: 2, logs: 'teepee', logsH: 6, overlap: 4, render: 'half' },
+  { name: 'Torch', sim: { w: 21, h: 8, source: 4, decay: 0.12, lean: 2, smoke: 0.3, sparks: 0.5 }, smokeH: 1, logs: 'torch', logsH: 7, overlap: 2, render: 'half' },
 ]
 
 export const DEFAULT_STYLE = 0
@@ -56,14 +39,14 @@ export const SIZES = [
 export const DEFAULT_SIZE = 1
 const CANVAS_COLUMNS = 21
 
-const CELL_HEIGHT = { braille: 4, half: 2, chunky: 2, clip: 2 }
+const CELL_HEIGHT = { braille: 4, half: 2 }
 const shapes = new Map<string, Style>()
 
 // A style as drawn at a size: the flame and smoke take the height the canvas gives them above the logs, and burn wider or narrower.
 function shapeOf(index: number, size: number): Style {
   const style = STYLES[index]!
   const { factor, rows } = SIZES[size]!
-  if (style.render === 'clip' || factor === 1) {
+  if (factor === 1) {
     return style
   }
   const key = `${index}:${size}`
@@ -116,10 +99,6 @@ function fireColor(heat: number): RGB {
   return [255, 255, 235]
 }
 
-function posterColor(heat: number): RGB {
-  return heat > 0.75 ? [255, 244, 170] : heat > 0.5 ? [255, 176, 40] : heat > 0.28 ? [232, 84, 18] : [150, 28, 14]
-}
-
 const hex = (color: RGB) => `#${color.map(value => value.toString(16).padStart(2, '0')).join('')}`
 const dim = (color: RGB): RGB => color.map(value => Math.round(value * 0.45)) as RGB
 
@@ -132,17 +111,12 @@ function hash(x: number, y: number, t: number): number {
 // One frame on: the source burns along the bottom, heat rises, sways and fades; smoke and sparks drift off the tip.
 export function stepFire(fire: Fire, level: Level, random: () => number = Math.random): void {
   fire.level = level
-  if (shapeOf(fire.style, fire.size).render === 'clip') {
-    fire.t += 1
-
-    return
-  }
-  const { w, h, source, decay, tongues = 1, lean = 5, smoke = 0.4, sparks = 0, licks = 0, smooth = 0.25 } = shapeOf(fire.style, fire.size).sim
+  const { w, h, source, decay, tongues = 1, lean = 5, smoke = 0.4, sparks = 0, licks = 0, smooth = 0.25, shift = 0 } = shapeOf(fire.style, fire.size).sim
   const grow = [0.6, 1, 1.2, 1.4][level - 1]!
   const width = source * [0.5, 0.8, 0.95, 1.1][level - 1]!
   fire.t += 1
   const { heat, t } = fire
-  const middle = (w - 1) / 2
+  const middle = (w - 1) / 2 + shift
   const swayOf = (tongue: number) => Math.sin(t * 0.09 + tongue * 2.1) * 0.5 + Math.sin(t * 0.23 + tongue * 1.3) * 0.25
   const sway = swayOf(0)
   // The whole flame breathes: it lengthens and shortens from frame to frame.
@@ -273,11 +247,6 @@ function drawLogs(buffer: Buffer, width: number, top: number, height: number, st
     log(width * 0.28, bottom, width * 0.56, top + 1, 0, brown, dark)
     log(width * 0.72, bottom, width * 0.44, top + 1, 0, brown, dark)
     log(width * 0.2, bottom, width * 0.8, bottom, 0, brown, dark)
-  } else if (style === 'pile') {
-    // A bonfire pile: log layers stacked, each narrower than the one below.
-    log(width * 0.06, bottom - 2, width * 0.94, bottom - 2, 2, brown, dark)
-    log(width * 0.16, bottom - 5, width * 0.84, bottom - 5, 2, brown, dark)
-    log(width * 0.28, bottom - 8, width * 0.72, bottom - 8, 2, brown, dark)
   } else if (style === 'sticks') {
     // Many thin sticks lean into a teepee, the outer ones lowest.
     for (let i = 0; i < sticks; i++) {
@@ -285,14 +254,13 @@ function drawLogs(buffer: Buffer, width: number, top: number, height: number, st
       const apex = width * (0.5 + (hash(i, 1, 5) - 0.5) * 0.12)
       log(width * (0.08 + along * 0.84), bottom, apex, top + Math.abs(along - 0.5) * height * 0.5, 0, i % 2 ? brown : dark, dark)
     }
-  } else if (style === 'block') {
-    // Two blocky logs, the back one narrower, with bark in three browns.
-    const bark: RGB[] = [[110, 85, 50], [140, 110, 65], [85, 65, 38]]
-    for (const [from, to, rows, base] of [[0.05, 0.95, 3, bottom], [0.15, 0.85, 3, bottom - 3]] as const) {
-      for (let y = base - rows + 1; y <= base; y++) {
-        for (let x = Math.round(width * from); x <= Math.round(width * to); x++) {
-          put(x, y, y === base - rows + 1 ? [170, 140, 90] : bark[Math.floor(hash(x, y, 4) * 3)]!)
-        }
+  } else if (style === 'torch') {
+    // A thin pole with a wrapped head, the flame burning on top of it.
+    const middle = Math.round((width - 1) / 2)
+    for (let y = top; y <= bottom; y++) {
+      const isHead = y < top + 3
+      for (let dx = isHead ? -1 : 0; dx <= (isHead ? 1 : 0); dx++) {
+        put(middle + dx, y, isHead ? dark : brown)
       }
     }
   }
@@ -342,12 +310,11 @@ function paint(fire: Fire, isBurning: boolean): { buffer: Buffer; logsTop: numbe
   drawLogs(buffer, w, logsTop, style.logsH, style.logs, style.sticks ?? 9)
   glowLogs(buffer, w, logsTop, style.logsH, fire.t, isBurning)
   if (isBurning) {
-    const paintHeat = style.isPosterized === true ? posterColor : fireColor
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const heat = fire.heat[y]![x]!
-        if (heat > (style.lit ?? 0.16)) {
-          buffer[y + style.smokeH]![x] = { color: paintHeat(heat), priority: 3, heat }
+        if (heat > 0.16) {
+          buffer[y + style.smokeH]![x] = { color: fireColor(heat), priority: 3, heat }
         }
       }
     }
@@ -394,15 +361,14 @@ function toCells(buffer: Buffer, render: Style['render'], isBurning: boolean): C
     for (let x = 0; x < width; x++) {
       const upper = buffer[y]![x]
       const lower = buffer[y + 1]?.[x]
-      const size = render === 'chunky' ? 2 : 1
       if (upper && lower) {
-        row.push({ char: '▀'.repeat(size), color: shade(upper.color), background: shade(lower.color) })
+        row.push({ char: '▀', color: shade(upper.color), background: shade(lower.color) })
       } else if (upper) {
-        row.push({ char: '▀'.repeat(size), color: shade(upper.color) })
+        row.push({ char: '▀', color: shade(upper.color) })
       } else if (lower) {
-        row.push({ char: '▄'.repeat(size), color: shade(lower.color) })
+        row.push({ char: '▄', color: shade(lower.color) })
       } else {
-        row.push({ char: ' '.repeat(size), color: '' })
+        row.push({ char: ' ', color: '' })
       }
     }
     rows.push(row)
@@ -414,9 +380,6 @@ function toCells(buffer: Buffer, render: Style['render'], isBurning: boolean): C
 // A burning fire shows flame, smoke and sparks above glowing logs; a spent one shows cold logs and a few dim embers.
 export function drawFire(fire: Fire, isBurning: boolean): Cell[][] {
   const style = shapeOf(fire.style, fire.size)
-  if (style.render === 'clip') {
-    return fitCanvas(drawClip(fire, isBurning ? style.clip! : (style.restClip ?? style.clip!), isBurning), fire.size)
-  }
   const { buffer, logsTop } = paint(fire, isBurning)
   const from = isBurning ? 0 : Math.floor(logsTop / 4) * 4
 
@@ -440,51 +403,4 @@ function fitCanvas(rows: Cell[][], size: number): Cell[][] {
     ...Array.from({ length: CANVAS.rows - fitted.length }, () => Array.from({ length: CANVAS.columns }, blank)),
     ...fitted,
   ]
-}
-
-const PALETTE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-
-// A burning clip plays the frame for this tick at the size of the stage; a spent one keeps the dim bottom of the stack.
-function drawClip(fire: Fire, name: string, isBurning: boolean): Cell[][] {
-  const clip = CLIPS[name]![0]!
-  const full = clip.scales[clip.scales.length - 1]!
-  const scale = isBurning ? clip.scales[fire.level - 1]! : full
-  const frame = scale.frames[(isBurning ? fire.t : 0) % scale.frames.length]!
-  const start = isBurning ? 0 : Math.floor((frame.length * (1 - clip.logs)) / 2) * 2
-  const rows = frame.slice(start)
-  const pad = Math.floor((full.width - scale.width) / 2)
-  const colorOf = (letter: string | undefined): string => {
-    const index = letter === undefined || letter === '.' ? -1 : PALETTE_ALPHABET.indexOf(letter)
-    if (index < 0) {
-      return ''
-    }
-    const color = PALETTE[index]!
-    if (isBurning) {
-      return color
-    }
-    const [red, green, blue] = [1, 3, 5].map(at => parseInt(color.slice(at, at + 2), 16)) as RGB
-
-    // The flame is out: only the dark logs and embers stay, dimmed.
-    return 0.3 * red + 0.59 * green + 0.11 * blue > 140 ? '' : hex(dim([red, green, blue]))
-  }
-  const cells: Cell[][] = []
-  for (let y = 0; y < rows.length; y += 2) {
-    const row: Cell[] = Array.from({ length: pad }, () => ({ char: ' ', color: '' }))
-    for (let x = 0; x < scale.width; x++) {
-      const upper = colorOf(rows[y]![x])
-      const lower = colorOf(rows[y + 1]?.[x])
-      row.push(
-        upper !== '' && lower !== ''
-          ? { char: '▀', color: upper, background: lower }
-          : upper !== ''
-            ? { char: '▀', color: upper }
-            : lower !== ''
-              ? { char: '▄', color: lower }
-              : { char: ' ', color: '' },
-      )
-    }
-    cells.push(row)
-  }
-
-  return cells
 }
