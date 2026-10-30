@@ -1,7 +1,7 @@
-import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
+import { expect, mock, test } from 'claude-code/testing'
 
-import { levelOf } from './campfire'
+import { levelOf } from './behavior'
 
 const BAND = {
   plugin: 'campfire',
@@ -65,12 +65,12 @@ test('/campfire style opens a pane of numbered styles that a press picks', async
   engine(on)
   await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
   const opened = await $.command.run({ command: 'campfire', args: 'style' } as never)
-  expect(opened.text).toContain('Press n or p')
+  expect(opened.text).toContain('Press 1-9')
   const pane = await $.ui.mount({ plugin: 'campfire', component: 'Pane', surface: 'terminal', requestId: 'campfire-styles', props: { title: 'Campfire styles', isFocused: false, bodyColumns: 100, placement: 'inline' } } as never)
-  expect(await pane.find({ type: 'Text', text: /1\. Braille classic/ })).toBeDefined()
+  expect(await pane.find({ type: 'Text', text: /1\. Classic/ })).toBeDefined()
   expect(await pane.find({ type: 'Text', text: /\[1\]/ })).toBeDefined()
   const picked = await $.command.run({ command: 'campfire', args: 'style 2' } as never)
-  expect(picked.text).toContain('2. Braille bonfire')
+  expect(picked.text).toContain('2. Pyre')
   const unknown = await $.command.run({ command: 'campfire', args: 'style 99' } as never)
   expect(unknown.text).toContain('No such style')
 })
@@ -96,4 +96,16 @@ test('/campfire bigger and smaller step through the sizes and stop at the ends',
   expect((await $.command.run({ command: 'campfire', args: 'smaller' } as never)).text).toBe('The fire is medium.')
   expect((await $.command.run({ command: 'campfire', args: 'smaller' } as never)).text).toBe('The fire is small.')
   expect((await $.command.run({ command: 'campfire', args: 'smaller' } as never)).text).toContain('already as small')
+})
+
+test('the size, style and always-lit setting come back with a new session', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
+  await $.command.run({ command: 'campfire', args: 'bigger' } as never)
+  await $.command.run({ command: 'campfire', args: 'style 2' } as never)
+  await $.command.run({ command: 'campfire', args: 'always on' } as never)
+  await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
+  expect((await $.command.run({ command: 'campfire', args: 'bigger' } as never)).text).toContain('already as big')
+  expect((await $.command.run({ command: 'campfire', args: 'style' } as never)).text).toContain('pane')
+  expect((await $.command.run({ command: 'campfire', args: 'always' } as never)).text).toContain('only while Claude works')
 })
