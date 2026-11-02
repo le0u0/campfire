@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/le0u0/campfire/compare/v1.0.0...v1.1.0) (2026-10-30)
+
+
+### Features
+
+* simplify style pane, rename styles, rewrite README ([de4271c](https://github.com/le0u0/campfire/commit/de4271cca5c198060b7aa5b809fbf89e4234b3e0))
+
 ## 1.0.0 (2026-10-27)
 
 
