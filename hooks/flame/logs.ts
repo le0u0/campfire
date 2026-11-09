@@ -34,7 +34,7 @@ export function drawLogs(buffer: Buffer, width: number, top: number, height: num
     for (let i = 0; i < sticks; i++) {
       const along = i / (sticks - 1)
       const apex = width * (0.5 + (hash(i, 1, 5) - 0.5) * 0.12)
-      log(width * (0.08 + along * 0.84), bottom, apex, top + Math.abs(along - 0.5) * height * 0.5, 0, i % 2 ? brown : dark, dark)
+      log(width * (0.2 + along * 0.6), bottom, apex, top + Math.abs(along - 0.5) * height * 0.5, 0, i % 2 ? brown : dark, dark)
     }
   } else if (style === 'torch') {
     // A thin pole with a wrapped head, the flame burning on top of it.
