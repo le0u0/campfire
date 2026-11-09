@@ -1,6 +1,6 @@
 import type { On } from 'claude-code'
 
-import { finish, patchBurning, readEnabled, readJob, setJob } from './state'
+import { finish, hasAgentRunning, patchBurning, readEnabled, readJob, setJob } from './state'
 import { addTask, moveTask, todoSteps } from './steps'
 
 const SYSTEM_SECTION = `# Campfire
@@ -17,13 +17,16 @@ export function registerTracking(on: On): void {
     return { sections: [...composed.sections, { id: 'campfire:fire', text: SYSTEM_SECTION, scope: 'session' }] }
   })
 
-  // A prompt lights a new fire; a turn that continues a burning one keeps it.
+  // A prompt lights a new fire, and so does a subagent that runs on after the main loop is done; a turn that continues a burning one keeps it.
   on('turn.start', async ($, e, next) => {
     const job = await readJob($)
     const isBurning = job !== null && job.phase === 'burning'
+    const isAgent = e.agentId !== undefined
     if (!isBurning && e.text.trim() !== '' && !e.text.trimStart().startsWith('/')) {
       const startedAt = await $.clock.now()
-      await setJob($, () => ({ phase: 'burning', steps: {}, startedAt, finishedAt: null }))
+      await setJob($, () => ({ phase: 'burning', steps: {}, isMainDone: isAgent, startedAt, finishedAt: null }))
+    } else if (isBurning && !isAgent && job.isMainDone) {
+      await patchBurning($, burning => ({ ...burning, isMainDone: false }))
     }
 
     return next(e)
@@ -50,7 +53,11 @@ export function registerTracking(on: On): void {
 
   on('turn.complete', async ($, e, next) => {
     if (e.agentId === undefined) {
-      await finish($, e.reason === 'aborted' ? 'out' : 'done')
+      if (e.reason !== 'aborted' && (await hasAgentRunning($))) {
+        await patchBurning($, job => ({ ...job, isMainDone: true }))
+      } else {
+        await finish($, e.reason === 'aborted' ? 'out' : 'done')
+      }
     }
 
     return next(e)

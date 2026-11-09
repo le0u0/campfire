@@ -2,13 +2,13 @@ import { clamp } from './color'
 import { shapeOf } from './styles'
 import type { Fire, Level } from './types'
 
-export function newFire(style: number, size: number): Fire {
+export function newFire(style: number, size: number, fuel = 0): Fire {
   const { w, h } = shapeOf(style, size).sim
 
-  return { style, size, level: 1 as Level, heat: Array.from({ length: h }, () => new Array<number>(w).fill(0)), particles: [], t: 0 }
+  return { style, size, level: 1 as Level, fuel, heat: Array.from({ length: h }, () => new Array<number>(w).fill(0)), particles: [], t: 0 }
 }
 
-// One frame on: the source burns along the bottom, heat rises, sways and fades; smoke and sparks drift off the tip.
+// One frame on: the source burns along the bottom, as strongly as the fuel lets it, heat rises, sways and fades; smoke and sparks drift off the tip.
 export function stepFire(fire: Fire, level: Level, random: () => number = Math.random): void {
   fire.level = level
   const { w, h, source, decay, tongues = 1, lean = 5, smoke = 0.4, sparks = 0, licks = 0, smooth = 0.25, shift = 0 } = shapeOf(fire.style, fire.size).sim
@@ -35,10 +35,10 @@ export function stepFire(fire: Fire, level: Level, random: () => number = Math.r
         base = Math.max(base, strength[tongue]! * (1 - away * away * 0.7) * (0.85 + random() * 0.15))
       }
     })
-    bottom[x] = base
+    bottom[x] = base * fire.fuel
   }
   // Now and then a narrow lick of flame shoots up from the root, so the flame is ragged instead of a smooth dome.
-  if (licks > 0 && random() < licks * grow) {
+  if (licks > 0 && random() < licks * grow * fire.fuel) {
     const at = Math.round(middle + (random() - 0.5) * width * 0.7)
     for (const x of [at, at + 1]) {
       if (bottom[x] !== undefined) {

@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 
 import { SIZES, STYLES } from '../flame'
-import { applySize, applyStyle, bumpTick, PANE, readEnabled, readJob, session, setAlways, setEnabled, syncTicker } from './state'
+import { applySize, applyStyle, bumpTick, PANE, readEnabled, readJob, session, setEnabled, syncTicker } from './state'
 
 export function registerCommand(on: On): void {
   on('command.run', { command: 'campfire' }, async ($, e) => {
@@ -24,16 +24,6 @@ export function registerCommand(on: On): void {
 
       return { text: `Campfire style is ${index + 1}. ${STYLES[index].name}.` }
     }
-    if (arg === 'always') {
-      if (choice !== '' && choice !== 'on' && choice !== 'off') {
-        return { text: 'Use /campfire always on, /campfire always off, or /campfire always to switch.' }
-      }
-      await setAlways($, choice === '' ? !session.isAlwaysOn : choice === 'on')
-      syncTicker($, await readJob($))
-      await bumpTick($)
-
-      return { text: session.isAlwaysOn ? 'The fire stays lit, even when Claude is idle.' : 'The fire is lit only while Claude works.' }
-    }
     if (arg === 'bigger' || arg === 'smaller') {
       const size = session.fire.size + (arg === 'bigger' ? 1 : -1)
       if (SIZES[size] === undefined) {
@@ -44,7 +34,7 @@ export function registerCommand(on: On): void {
       return { text: `The fire is ${SIZES[size]!.name}.` }
     }
     if (arg !== '' && arg !== 'on' && arg !== 'off') {
-      return { text: 'Use /campfire on, off, always, bigger, smaller or style.' }
+      return { text: 'Use /campfire on, off, bigger, smaller or style.' }
     }
     await setEnabled($, arg === '' ? !(await readEnabled($)) : arg === 'on')
     syncTicker($, await readJob($))
