@@ -1,6 +1,6 @@
 {
   "name": "campfire",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Light a fire while Claude works: tool calls fade away and an animated campfire grows with every step Claude finishes, then burns down to embers when the job is done",
   "author": {
     "name": "Leo Ho"
