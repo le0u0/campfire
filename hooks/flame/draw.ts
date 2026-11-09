@@ -1,10 +1,10 @@
 import { dim, fireColor, hex, lerp } from './color'
 import { drawLogs, glowLogs } from './logs'
-import { CANVAS_COLUMNS, shapeOf, SIZES } from './styles'
+import { CANVAS_COLUMNS, rowsOf, shapeOf } from './styles'
 import type { Buffer, Cell, Fire, Pixel, RGB, Style } from './types'
 
 function paint(fire: Fire, isBurning: boolean): { buffer: Buffer; logsTop: number } {
-  const style = shapeOf(fire.style, fire.size)
+  const style = shapeOf(fire.style)
   const { w, h } = style.sim
   const logsTop = style.smokeH + h - style.overlap
   const buffer: Buffer = Array.from({ length: logsTop + style.logsH }, () => new Array<Pixel | null>(w).fill(null))
@@ -27,7 +27,7 @@ function paint(fire: Fire, isBurning: boolean): { buffer: Buffer; logsTop: numbe
       }
     }
   }
-  drawLogs(buffer, w, logsTop, style.logsH, style.logs, style.sticks ?? 9)
+  drawLogs(buffer, w, logsTop, style.logsH, style.logs, style.sticks ?? 9, isBurning)
   glowLogs(buffer, w, logsTop, style.logsH, fire.t, isBurning)
   if (isBurning) {
     for (let y = 0; y < h; y++) {
@@ -97,18 +97,23 @@ function toCells(buffer: Buffer, render: Style['render'], isBurning: boolean): C
   return rows
 }
 
-// A burning fire shows flame, smoke and sparks above glowing logs; a spent one shows cold logs and a few dim embers.
+// A burning fire shows flame, smoke and sparks above glowing logs; a spent one shows only the cold logs, in as few rows as they need.
 export function drawFire(fire: Fire, isBurning: boolean): Cell[][] {
-  const style = shapeOf(fire.style, fire.size)
+  const style = shapeOf(fire.style)
   const { buffer, logsTop } = paint(fire, isBurning)
-  const from = isBurning ? 0 : Math.floor(logsTop / 4) * 4
+  const cell = style.render === 'braille' ? 4 : 2
+  const from = isBurning ? 0 : Math.floor(logsTop / cell) * cell
 
-  return fitCanvas(toCells(buffer.slice(from), style.render, isBurning), fire.size)
+  const cells = toCells(buffer.slice(from), style.render, isBurning)
+  // A spent fire keeps only the rows with logs in them.
+  const first = isBurning ? 0 : cells.findIndex(row => row.some(item => item.char !== ' '))
+
+  return fitCanvas(cells.slice(Math.max(0, first)), rowsOf(fire.style), isBurning)
 }
 
-// Every style draws on the same canvas for a size, the fire standing at the bottom middle, so the band never changes size.
-function fitCanvas(rows: Cell[][], size: number): Cell[][] {
-  const CANVAS = { rows: SIZES[size]!.rows, columns: CANVAS_COLUMNS }
+// Every style burns on a canvas of its own height, the fire standing at the bottom middle, so the band does not change size while it burns.
+function fitCanvas(rows: Cell[][], height: number, isPadded: boolean): Cell[][] {
+  const CANVAS = { rows: height, columns: CANVAS_COLUMNS }
   const blank = (): Cell => ({ char: ' ', color: '' })
   const kept = rows.slice(-CANVAS.rows)
   const fitted = kept.map(row => {
@@ -120,7 +125,7 @@ function fitCanvas(rows: Cell[][], size: number): Cell[][] {
   })
 
   return [
-    ...Array.from({ length: CANVAS.rows - fitted.length }, () => Array.from({ length: CANVAS.columns }, blank)),
+    ...Array.from({ length: isPadded ? CANVAS.rows - fitted.length : 0 }, () => Array.from({ length: CANVAS.columns }, blank)),
     ...fitted,
   ]
 }

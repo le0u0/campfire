@@ -2,8 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Timer } from 'claude-code'
 
 import type { CampfireJob } from '../../types'
-import { DEFAULT_SIZE, DEFAULT_STYLE, newFire, SIZES, STYLES, stepFire } from '../flame'
-import type { Fire, Level } from '../flame'
+import { DEFAULT_STYLE, newFire, STYLES, stepFire } from '../flame'
+import type { Fire } from '../flame'
 import { levelOf } from './level'
 
 export type $ = EngineInterface
@@ -16,9 +16,10 @@ export const PANE = 'campfire-styles'
 
 const STORE_KEY = 'campfireEnabled'
 const STYLE_KEY = 'campfireStyle'
-const SIZE_KEY = 'campfireSize'
-const ALWAYS_KEY = 'campfireAlways'
 const TICK_MS = 120
+// How much fuel the fire gains or loses a frame: it catches in a few frames and dies down in about a second and a half.
+const CATCH = 0.25
+const DIE_DOWN = 0.07
 
 // The atoms are read and written only here, so the engine can list the values the plugin keeps.
 export function readEnabled($: $): Promise<boolean> {
@@ -39,23 +40,35 @@ export function bumpTick($: $): Promise<number> {
 }
 
 // The module's own variables: they start over when the plugin reloads.
-export const session: { ticker: Timer | null; fire: Fire; isOn: boolean; isAlwaysOn: boolean } = {
+export const session: { ticker: Timer | null; fire: Fire; isOn: boolean } = {
   ticker: null,
-  fire: newFire(DEFAULT_STYLE, DEFAULT_SIZE),
+  fire: newFire(DEFAULT_STYLE),
   isOn: true,
-  isAlwaysOn: false,
 }
 
-// The frame clock runs while a job burns, and all the time when the fire is always on.
+// The frame clock runs while a job burns, and on until the flame has died down.
 export function syncTicker($: $, job: CampfireJob | null): void {
-  const isWanted = (job !== null && job.phase === 'burning') || (session.isOn && session.isAlwaysOn)
+  const isWanted = (job !== null && job.phase === 'burning') || session.fire.fuel > 0
   if (isWanted && session.ticker === null) {
-    session.fire = newFire(session.fire.style, session.fire.size)
+    session.fire = newFire(session.fire.style)
     session.ticker = $.clock.every(TICK_MS, async () => {
       const current = await readJob($)
-      const isJob = current !== null && current.phase === 'burning'
-      const level = isJob ? levelOf(current.steps, (await $.clock.now()) - current.startedAt) : 2
-      stepFire(session.fire, session.isAlwaysOn ? (Math.max(level, 2) as Level) : level)
+      if (current === null || current.phase !== 'burning') {
+        session.fire.fuel = Math.max(0, session.fire.fuel - DIE_DOWN)
+        stepFire(session.fire, 1)
+        syncTicker($, current)
+        void bumpTick($)
+
+        return
+      }
+      session.fire.fuel = Math.min(1, session.fire.fuel + CATCH)
+      // The main loop is done: the fire goes out when the last subagent stops.
+      if (current.isMainDone && !(await hasAgentRunning($))) {
+        await finish($, 'done')
+
+        return
+      }
+      stepFire(session.fire, levelOf(current.steps, (await $.clock.now()) - current.startedAt))
       void bumpTick($)
     })
   }
@@ -63,6 +76,10 @@ export function syncTicker($: $, job: CampfireJob | null): void {
     session.ticker.cancel()
     session.ticker = null
   }
+}
+
+export async function hasAgentRunning($: $): Promise<boolean> {
+  return (await $.agent.list()).some(agent => agent.status === 'running' || agent.status === 'pending')
 }
 
 export async function setJob($: $, change: (job: CampfireJob | null) => CampfireJob | null): Promise<void> {
@@ -79,14 +96,8 @@ export async function finish($: $, phase: 'done' | 'out'): Promise<void> {
 }
 
 export async function applyStyle($: $, index: number): Promise<void> {
-  session.fire = newFire(index, session.fire.size)
+  session.fire = newFire(index, session.fire.fuel)
   await $.store.set(STYLE_KEY, index)
-  await bumpTick($)
-}
-
-export async function applySize($: $, size: number): Promise<void> {
-  session.fire = newFire(session.fire.style, size)
-  await $.store.set(SIZE_KEY, size)
   await bumpTick($)
 }
 
@@ -96,26 +107,16 @@ export async function setEnabled($: $, isOn: boolean): Promise<void> {
   await $.store.set(STORE_KEY, isOn)
 }
 
-export async function setAlways($: $, isAlwaysOn: boolean): Promise<void> {
-  session.isAlwaysOn = isAlwaysOn
-  await $.store.set(ALWAYS_KEY, isAlwaysOn)
-}
-
 export async function setUp($: $): Promise<void> {
   const stored = await $.store.get(STORE_KEY)
   session.isOn = stored !== false
   await update($, enabledAtom, () => session.isOn)
-  session.isAlwaysOn = (await $.store.get(ALWAYS_KEY)) === true
   const style = await $.store.get(STYLE_KEY)
-  const size = await $.store.get(SIZE_KEY)
-  session.fire = newFire(
-    typeof style === 'number' && STYLES[style] !== undefined ? style : DEFAULT_STYLE,
-    typeof size === 'number' && SIZES[size] !== undefined ? size : DEFAULT_SIZE,
-  )
+  session.fire = newFire(typeof style === 'number' && STYLES[style] !== undefined ? style : DEFAULT_STYLE)
   syncTicker($, await readJob($))
   await $.command.register({
     name: 'campfire',
-    description: 'Turn Campfire on or off, keep the fire lit, resize it, or pick its look',
-    argumentHint: 'on|off|always [on|off]|bigger|smaller|style [number]',
+    description: 'Turn Campfire on or off, or pick its look',
+    argumentHint: 'on|off|style [number]',
   })
 }

@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 
 import { drawFire, STYLES } from '../flame'
-import { applyStyle, PANE, readEnabled, readJob, readTick, session } from './state'
+import { applyStyle, PANE, readEnabled, readTick, session } from './state'
 
 export function registerRender(on: On): void {
   on('ui.render', { component: /^(ToolUse|ToolResult|ToolGroup|Spinner|TurnDuration)$/ }, async ($, e, next) =>
@@ -41,16 +41,16 @@ export function registerRender(on: On): void {
       return next(e)
     }
     const isEnabled = await readEnabled($)
-    const job = isEnabled ? await readJob($) : null
-    if (!isEnabled || (job === null && !session.isAlwaysOn)) {
+    if (!isEnabled) {
       return next(e)
     }
+    // The logs always stay; the fire burns while Claude or a subagent works, and dies down slowly after.
     const { Box, Text } = $.ui.resolve(e)
     // Rows from later plugins, like the context tracker, stay below the fire.
     const below = await next(e)
     // `tick` redraws the fire; the heat itself moves in the ticker.
     void (await readTick($))
-    const rows = drawFire(session.fire, session.isAlwaysOn || job?.phase === 'burning')
+    const rows = drawFire(session.fire, session.fire.fuel > 0)
 
     return (
       <Box flexDirection="column">

@@ -2,7 +2,7 @@ import { hash, lerp } from './color'
 import type { Buffer, RGB, Style } from './types'
 
 // Logs are drawn as outlines, like sticks laid across each other, so the flame and embers show through.
-export function drawLogs(buffer: Buffer, width: number, top: number, height: number, style: Style['logs'], sticks: number): void {
+export function drawLogs(buffer: Buffer, width: number, top: number, height: number, style: Style['logs'], sticks: number, isBurning: boolean): void {
   const put = (x: number, y: number, color: RGB) => {
     const column = Math.round(x)
     const row = buffer[Math.round(y)]
@@ -29,36 +29,34 @@ export function drawLogs(buffer: Buffer, width: number, top: number, height: num
   const bottom = top + height - 1
   const brown: RGB = [160, 106, 53]
   const dark: RGB = [107, 68, 35]
-  if (style === 'crossed') {
-    log(width * 0.12, bottom - 3, width * 0.78, top + 1, 3, brown, dark)
-    log(width * 0.88, bottom - 3, width * 0.22, top + 1, 3, brown, dark)
-    log(width * 0.2, bottom - 1, width * 0.8, bottom - 1, 2, brown, dark)
-  } else if (style === 'teepee') {
-    log(width * 0.12, bottom, width * 0.47, top, 0, brown, dark)
-    log(width * 0.88, bottom, width * 0.53, top, 0, brown, dark)
-    log(width * 0.28, bottom, width * 0.56, top + 1, 0, brown, dark)
-    log(width * 0.72, bottom, width * 0.44, top + 1, 0, brown, dark)
-    log(width * 0.2, bottom, width * 0.8, bottom, 0, brown, dark)
-  } else if (style === 'sticks') {
+  if (style === 'sticks') {
     // Many thin sticks lean into a teepee, the outer ones lowest.
     for (let i = 0; i < sticks; i++) {
       const along = i / (sticks - 1)
       const apex = width * (0.5 + (hash(i, 1, 5) - 0.5) * 0.12)
-      log(width * (0.08 + along * 0.84), bottom, apex, top + Math.abs(along - 0.5) * height * 0.5, 0, i % 2 ? brown : dark, dark)
+      log(width * (0.2 + along * 0.6), bottom, apex, top + Math.abs(along - 0.5) * height * 0.5, 0, i % 2 ? brown : dark, dark)
     }
   } else if (style === 'torch') {
     // A thin pole with a wrapped head, the flame burning on top of it.
     const middle = Math.round((width - 1) / 2)
+    // The head is a rounded bulb with a rim, charred, with grey ash on top, when the fire is out; the pole is wrapped in bands.
+    const char: RGB = [66, 46, 32]
+    const ash: RGB = [112, 104, 96]
+    const head = isBurning ? dark : char
     for (let y = top; y <= bottom; y++) {
-      const isHead = y < top + 3
-      for (let dx = isHead ? -1 : 0; dx <= (isHead ? 1 : 0); dx++) {
-        put(middle + dx, y, isHead ? dark : brown)
+      if (y < top + 3) {
+        const reach = y === top + 1 ? 2 : 1
+        for (let dx = -reach; dx <= reach; dx++) {
+          put(middle + dx, y, Math.abs(dx) === 2 ? dark : !isBurning && y === top ? ash : head)
+        }
+      } else {
+        put(middle, y, (y - top) % 3 === 0 ? dark : brown)
       }
     }
   }
 }
 
-// The glow on the logs: it flickers while the fire burns, and a few dim embers stay when it is down.
+// The glow on the logs: it flickers while the fire burns, and none stays when it is down.
 export function glowLogs(buffer: Buffer, width: number, top: number, height: number, t: number, isBurning: boolean): void {
   for (let y = top; y < top + height; y++) {
     for (let x = Math.round(width * 0.3); x < width * 0.7; x++) {
@@ -68,8 +66,6 @@ export function glowLogs(buffer: Buffer, width: number, top: number, height: num
       }
       if (isBurning && hash(x, y, t) > 0.7) {
         pixel.color = hash(x, y, t + 9) > 0.5 ? [255, 106, 31] : [255, 179, 71]
-      } else if (!isBurning && hash(x, y, 0) > 0.93) {
-        pixel.color = [122, 42, 18]
       }
     }
   }

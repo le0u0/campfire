@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
-import { drawFire, newFire, SIZES, stepFire, STYLES } from '.'
+import { drawFire, newFire, stepFire, STYLES } from '.'
+import { rowsOf } from './styles'
 
 const seeded = (seed: number) => () => {
   seed = (seed * 16807) % 2147483647
@@ -9,8 +10,8 @@ const seeded = (seed: number) => () => {
 }
 
 const widthOf = (row: { char: string }[]) => row.reduce((sum, cell) => sum + cell.char.length, 0)
-const blazing = (style: number, size: number) => {
-  const fire = newFire(style, size)
+const blazing = (style: number) => {
+  const fire = newFire(style, 1)
   const random = seeded(1)
   for (let i = 0; i < 80; i++) {
     stepFire(fire, 4, random)
@@ -19,24 +20,23 @@ const blazing = (style: number, size: number) => {
   return fire
 }
 
-test('every style fills the same canvas at every size', () => {
+test('every style burns on a canvas of its own height, and a spent fire takes fewer rows', () => {
   for (let style = 0; style < STYLES.length; style++) {
-    for (let size = 0; size < SIZES.length; size++) {
-      for (const isBurning of [true, false]) {
-        const rows = drawFire(blazing(style, size), isBurning)
-        expect(rows).toHaveLength(SIZES[size]!.rows)
-        for (const row of rows) {
-          expect(widthOf(row)).toBe(21)
-        }
-      }
+    const burning = drawFire(blazing(style), true)
+    const spent = drawFire(blazing(style), false)
+    expect(burning).toHaveLength(rowsOf(style))
+    expect(spent.length).toBeGreaterThan(0)
+    expect(spent.length).toBeLessThan(burning.length)
+    for (const row of [...burning, ...spent]) {
+      expect(widthOf(row)).toBe(21)
     }
   }
 })
 
-test('a blazing fire draws flame and a spent one only logs and embers', () => {
+test('a blazing fire draws flame and a spent one only logs', () => {
   const isLit = (cells: { color: string }[][]) => cells.flat().some(cell => cell.color !== '')
   for (let style = 0; style < STYLES.length; style++) {
-    const fire = blazing(style, 1)
+    const fire = blazing(style)
     const burning = drawFire(fire, true)
     const spent = drawFire(fire, false)
     expect(isLit(burning)).toBe(true)
@@ -46,7 +46,7 @@ test('a blazing fire draws flame and a spent one only logs and embers', () => {
 })
 
 test('the same seed gives the same flame', () => {
-  expect(JSON.stringify(drawFire(blazing(0, 1), true))).toBe(JSON.stringify(drawFire(blazing(0, 1), true)))
+  expect(JSON.stringify(drawFire(blazing(0), true))).toBe(JSON.stringify(drawFire(blazing(0), true)))
 })
 
 test('a stronger level burns hotter', () => {

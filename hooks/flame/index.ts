@@ -2,5 +2,5 @@
 // Each style draws the pixels its own way: half blocks or braille dots.
 export { drawFire } from './draw'
 export { newFire, stepFire } from './simulate'
-export { DEFAULT_SIZE, DEFAULT_STYLE, SIZES, STYLES } from './styles'
+export { DEFAULT_STYLE, STYLES } from './styles'
 export type { Cell, Fire, Level } from './types'

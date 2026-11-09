@@ -5,6 +5,8 @@ export type CampfirePhase = 'burning' | 'done' | 'out'
 export type CampfireJob = {
   phase: CampfirePhase
   steps: Record<string, CampfireStepStatus>
+  // The main loop has ended its turn; the fire burns on while a subagent still runs.
+  isMainDone: boolean
   startedAt: number
   finishedAt: number | null
 }
