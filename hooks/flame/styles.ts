@@ -8,7 +8,7 @@ export const STYLES: Style[] = [
 export const DEFAULT_STYLE = 0
 
 // How many rows of flame and smoke stand above the logs. The logs keep their shape; the canvas is as tall as the logs plus these rows.
-const FLAME_ROWS = 3
+const FLAME_ROWS = 2
 export const CANVAS_COLUMNS = 21
 
 const CELL_HEIGHT = { braille: 4, half: 2 }
