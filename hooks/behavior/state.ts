@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Timer } from 'claude-code'
 
 import type { CampfireJob } from '../../types'
-import { DEFAULT_SIZE, DEFAULT_STYLE, newFire, SIZES, STYLES, stepFire } from '../flame'
+import { DEFAULT_STYLE, newFire, STYLES, stepFire } from '../flame'
 import type { Fire } from '../flame'
 import { levelOf } from './level'
 
@@ -16,7 +16,6 @@ export const PANE = 'campfire-styles'
 
 const STORE_KEY = 'campfireEnabled'
 const STYLE_KEY = 'campfireStyle'
-const SIZE_KEY = 'campfireSize'
 const TICK_MS = 120
 // How much fuel the fire gains or loses a frame: it catches in a few frames and dies down in about a second and a half.
 const CATCH = 0.25
@@ -43,7 +42,7 @@ export function bumpTick($: $): Promise<number> {
 // The module's own variables: they start over when the plugin reloads.
 export const session: { ticker: Timer | null; fire: Fire; isOn: boolean } = {
   ticker: null,
-  fire: newFire(DEFAULT_STYLE, DEFAULT_SIZE),
+  fire: newFire(DEFAULT_STYLE),
   isOn: true,
 }
 
@@ -51,7 +50,7 @@ export const session: { ticker: Timer | null; fire: Fire; isOn: boolean } = {
 export function syncTicker($: $, job: CampfireJob | null): void {
   const isWanted = (job !== null && job.phase === 'burning') || session.fire.fuel > 0
   if (isWanted && session.ticker === null) {
-    session.fire = newFire(session.fire.style, session.fire.size)
+    session.fire = newFire(session.fire.style)
     session.ticker = $.clock.every(TICK_MS, async () => {
       const current = await readJob($)
       if (current === null || current.phase !== 'burning') {
@@ -97,14 +96,8 @@ export async function finish($: $, phase: 'done' | 'out'): Promise<void> {
 }
 
 export async function applyStyle($: $, index: number): Promise<void> {
-  session.fire = newFire(index, session.fire.size, session.fire.fuel)
+  session.fire = newFire(index, session.fire.fuel)
   await $.store.set(STYLE_KEY, index)
-  await bumpTick($)
-}
-
-export async function applySize($: $, size: number): Promise<void> {
-  session.fire = newFire(session.fire.style, size, session.fire.fuel)
-  await $.store.set(SIZE_KEY, size)
   await bumpTick($)
 }
 
@@ -119,15 +112,11 @@ export async function setUp($: $): Promise<void> {
   session.isOn = stored !== false
   await update($, enabledAtom, () => session.isOn)
   const style = await $.store.get(STYLE_KEY)
-  const size = await $.store.get(SIZE_KEY)
-  session.fire = newFire(
-    typeof style === 'number' && STYLES[style] !== undefined ? style : DEFAULT_STYLE,
-    typeof size === 'number' && SIZES[size] !== undefined ? size : DEFAULT_SIZE,
-  )
+  session.fire = newFire(typeof style === 'number' && STYLES[style] !== undefined ? style : DEFAULT_STYLE)
   syncTicker($, await readJob($))
   await $.command.register({
     name: 'campfire',
-    description: 'Turn Campfire on or off, resize it, or pick its look',
-    argumentHint: 'on|off|bigger|smaller|style [number]',
+    description: 'Turn Campfire on or off, or pick its look',
+    argumentHint: 'on|off|style [number]',
   })
 }

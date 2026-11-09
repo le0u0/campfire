@@ -100,22 +100,10 @@ test('the fire goes out when the turn ends, and burns on while a subagent runs',
   expect((await ui.findAll({ type: 'Text' })).length).toBeLessThan(burning)
 })
 
-test('/campfire bigger and smaller step through the sizes and stop at the ends', async ($, on) => {
+test('the style comes back with a new session', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
-  expect((await $.command.run({ command: 'campfire', args: 'bigger' } as never)).text).toBe('The fire is large.')
-  expect((await $.command.run({ command: 'campfire', args: 'bigger' } as never)).text).toContain('already as big')
-  expect((await $.command.run({ command: 'campfire', args: 'smaller' } as never)).text).toBe('The fire is medium.')
-  expect((await $.command.run({ command: 'campfire', args: 'smaller' } as never)).text).toBe('The fire is small.')
-  expect((await $.command.run({ command: 'campfire', args: 'smaller' } as never)).text).toContain('already as small')
-})
-
-test('the size and style come back with a new session', async ($, on) => {
-  engine(on)
-  await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
-  await $.command.run({ command: 'campfire', args: 'bigger' } as never)
   await $.command.run({ command: 'campfire', args: 'style 2' } as never)
   await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
-  expect((await $.command.run({ command: 'campfire', args: 'bigger' } as never)).text).toContain('already as big')
   expect((await $.command.run({ command: 'campfire', args: 'style' } as never)).text).toContain('pane')
 })

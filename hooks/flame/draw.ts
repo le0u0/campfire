@@ -4,7 +4,7 @@ import { CANVAS_COLUMNS, rowsOf, shapeOf } from './styles'
 import type { Buffer, Cell, Fire, Pixel, RGB, Style } from './types'
 
 function paint(fire: Fire, isBurning: boolean): { buffer: Buffer; logsTop: number } {
-  const style = shapeOf(fire.style, fire.size)
+  const style = shapeOf(fire.style)
   const { w, h } = style.sim
   const logsTop = style.smokeH + h - style.overlap
   const buffer: Buffer = Array.from({ length: logsTop + style.logsH }, () => new Array<Pixel | null>(w).fill(null))
@@ -99,7 +99,7 @@ function toCells(buffer: Buffer, render: Style['render'], isBurning: boolean): C
 
 // A burning fire shows flame, smoke and sparks above glowing logs; a spent one shows only the cold logs, in as few rows as they need.
 export function drawFire(fire: Fire, isBurning: boolean): Cell[][] {
-  const style = shapeOf(fire.style, fire.size)
+  const style = shapeOf(fire.style)
   const { buffer, logsTop } = paint(fire, isBurning)
   const cell = style.render === 'braille' ? 4 : 2
   const from = isBurning ? 0 : Math.floor(logsTop / cell) * cell
@@ -108,10 +108,10 @@ export function drawFire(fire: Fire, isBurning: boolean): Cell[][] {
   // A spent fire keeps only the rows with logs in them.
   const first = isBurning ? 0 : cells.findIndex(row => row.some(item => item.char !== ' '))
 
-  return fitCanvas(cells.slice(Math.max(0, first)), rowsOf(fire.style, fire.size), isBurning)
+  return fitCanvas(cells.slice(Math.max(0, first)), rowsOf(fire.style), isBurning)
 }
 
-// Every style burns on the same canvas for a size, the fire standing at the bottom middle, so the band does not change size while it burns.
+// Every style burns on a canvas of its own height, the fire standing at the bottom middle, so the band does not change size while it burns.
 function fitCanvas(rows: Cell[][], height: number, isPadded: boolean): Cell[][] {
   const CANVAS = { rows: height, columns: CANVAS_COLUMNS }
   const blank = (): Cell => ({ char: ' ', color: '' })

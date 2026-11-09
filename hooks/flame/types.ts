@@ -7,7 +7,7 @@ export type Particle = { x: number; y: number; vx: number; vy: number; life: num
 
 export type Cell = { char: string; color: string; background?: string }
 // `fuel` is how strongly the fire is fed: 1 burns freely, and it falls to 0 as the fire dies down.
-export type Fire = { style: number; size: number; level: Level; fuel: number; heat: number[][]; particles: Particle[]; t: number }
+export type Fire = { style: number; level: Level; fuel: number; heat: number[][]; particles: Particle[]; t: number }
 
 export type Style = {
   name: string

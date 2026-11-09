@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 
-import { SIZES, STYLES } from '../flame'
-import { applySize, applyStyle, bumpTick, PANE, readEnabled, readJob, session, setEnabled, syncTicker } from './state'
+import { STYLES } from '../flame'
+import { applyStyle, bumpTick, PANE, readEnabled, readJob, session, setEnabled, syncTicker } from './state'
 
 export function registerCommand(on: On): void {
   on('command.run', { command: 'campfire' }, async ($, e) => {
@@ -24,17 +24,8 @@ export function registerCommand(on: On): void {
 
       return { text: `Campfire style is ${index + 1}. ${STYLES[index].name}.` }
     }
-    if (arg === 'bigger' || arg === 'smaller') {
-      const size = session.fire.size + (arg === 'bigger' ? 1 : -1)
-      if (SIZES[size] === undefined) {
-        return { text: `The fire is already as ${arg === 'bigger' ? 'big' : 'small'} as it gets (${SIZES[session.fire.size]!.name}).` }
-      }
-      await applySize($, size)
-
-      return { text: `The fire is ${SIZES[size]!.name}.` }
-    }
     if (arg !== '' && arg !== 'on' && arg !== 'off') {
-      return { text: 'Use /campfire on, off, bigger, smaller or style.' }
+      return { text: 'Use /campfire on, off or style.' }
     }
     await setEnabled($, arg === '' ? !(await readEnabled($)) : arg === 'on')
     syncTicker($, await readJob($))

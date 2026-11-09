@@ -15,7 +15,6 @@ Light a fire while Claude works. Tool calls fade away, and a campfire crackles a
 | --- | --- |
 | `/campfire [on\|off]` | Switch the fire on or off; with no argument, toggle it |
 | `/campfire style [number\|name]` | Pick a style by number or the start of its name; with no argument, open a pane to pick one |
-| `/campfire bigger`, `/campfire smaller` | Resize the flame: small, medium (default) or large |
 
 ## What you see
 

@@ -2,16 +2,16 @@ import { clamp } from './color'
 import { shapeOf } from './styles'
 import type { Fire, Level } from './types'
 
-export function newFire(style: number, size: number, fuel = 0): Fire {
-  const { w, h } = shapeOf(style, size).sim
+export function newFire(style: number, fuel = 0): Fire {
+  const { w, h } = shapeOf(style).sim
 
-  return { style, size, level: 1 as Level, fuel, heat: Array.from({ length: h }, () => new Array<number>(w).fill(0)), particles: [], t: 0 }
+  return { style, level: 1 as Level, fuel, heat: Array.from({ length: h }, () => new Array<number>(w).fill(0)), particles: [], t: 0 }
 }
 
 // One frame on: the source burns along the bottom, as strongly as the fuel lets it, heat rises, sways and fades; smoke and sparks drift off the tip.
 export function stepFire(fire: Fire, level: Level, random: () => number = Math.random): void {
   fire.level = level
-  const { w, h, source, decay, tongues = 1, lean = 5, smoke = 0.4, sparks = 0, licks = 0, smooth = 0.25, shift = 0 } = shapeOf(fire.style, fire.size).sim
+  const { w, h, source, decay, tongues = 1, lean = 5, smoke = 0.4, sparks = 0, licks = 0, smooth = 0.25, shift = 0 } = shapeOf(fire.style).sim
   const grow = [0.6, 1, 1.2, 1.4][level - 1]!
   const width = source * [0.5, 0.8, 0.95, 1.1][level - 1]!
   fire.t += 1
